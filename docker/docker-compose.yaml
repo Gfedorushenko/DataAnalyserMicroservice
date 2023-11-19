@@ -1,0 +1,75 @@
+version: '3.0'
+
+networks:
+  app:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local
+  redis-data:
+    driver: local
+  kafka-data:
+    driver: local
+  zookeeper-data:
+    driver: local
+  debezium-data:
+    driver: local
+
+services:
+  generator:
+    image: 'Gfedorushenko/DataGeneratorMicroservice:latest'
+    networks:
+      - app
+    depends_on:
+      - kafka
+    env_file:
+      - .env
+    ports:
+      - '8081:8081'
+
+  analyser:
+    image: 'Gfedorushenko/DataAnalyserMicroservice:latest'
+    networks:
+      - app
+    depends_on:
+      - postgress
+      - kafka
+    env_file:
+      - .env
+    ports:
+      - '8082:8082'
+
+  zookeeper:
+    image: 'confluentinc/cp-zookeeper:latest'
+    networks:
+      - app
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=${ZOOKEEPER_CLIENT_PORT}
+      - ZOOKEEPER_TICK_TIME=${ZOOKEEPER_TICK_TIME}
+    ports:
+      - '2181:2181'
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+
+  kafka:
+    image: 'confluentinc/cp-kafka:latest'
+    networks:
+      - app
+    env_file:
+      - .env
+    ports:
+      - '9092:9092'
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+  postgres:
+    image: 'postgres:15.1-alpine'
+    networks:
+      - app
+    env_file:
+      - .env
+    ports:
+      - '5437:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
